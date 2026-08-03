@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AI野球ノート | Smart Baseball Journal & AI Coach</title>
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Full Unified Design System - Pure Red/Green/Blue Palette & Deluxe Effects */
+    :root {
+      --bg-primary: #0B0F19;
+      --bg-card: rgba(22, 30, 46, 0.9);
+      --bg-card-hover: rgba(28, 38, 58, 0.95);
+      --bg-glass: rgba(15, 23, 42, 0.9);
+      --bg-input: #151D2A;
+      
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --text-sub: #6B7280;
+      
+      /* Pure Core 3 Colors */
+      --accent-blue: #00F2FE;   /* 青: AIアドバイス / メイン */
+      --accent-green: #10B981;  /* 緑: よかった点 / 保存 */
+      --accent-red: #EF4444;    /* 赤: 反省・課題 */
+      --accent-purple: #A855F7; /* 紫: プレミアム AI分析 */
+      
+      --border-color: rgba(255, 255, 255, 0.12);
+      --border-glow: rgba(0, 242, 254, 0.25);
+      
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      
+      --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.5);
+      --transition-fast: 0.2s ease;
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #F8FAFC;
+      --bg-card: rgba(255, 255, 255, 0.95);
+      --bg-card-hover: rgba(241, 245, 249, 0.95);
+      --bg-glass: rgba(255, 255, 255, 0.92);
+      --bg-input: #FFFFFF;
+      
+      --text-main: #0F172A;
+      --text-muted: #475569;
+      --text-sub: #64748B;
+      
+      --accent-blue: #0284C7;
+      --accent-green: #059669;
+      --accent-red: #DC2626;
+      --accent-purple: #9333EA;
+      
+      --border-color: rgba(0, 0, 0, 0.12);
+      --shadow-card: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans JP', sans-serif; -webkit-tap-highlight-color: transparent; }
+
+    svg.lucide, svg { vertical-align: middle; display: inline-flex; align-self: center; flex-shrink: 0; }
+
+    body {
+      background-color: var(--bg-primary); color: var(--text-main);
+      min-height: 100vh; display: flex; justify-content: center; overflow-x: hidden; font-size: 14px; line-height: 1.5;
+    }
+
+    .app-container {
+      width: 100%; max-width: 540px; min-height: 100vh; display: flex; flex-direction: column;
+      background: radial-gradient(circle at top right, rgba(0, 242, 254, 0.08), transparent 40%),
+                  radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.06), transparent 40%);
+      position: relative; padding-bottom: 85px;
+    }
+
+    .app-header {
+      position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--bg-glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-color); min-height: 60px;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, var(--accent-blue), #4FACFE);
+      display: inline-flex; align-items: center; justify-content: center; color: #000; flex-shrink: 0;
+    }
+    .logo-text h1 {
+      font-size: 1.15rem; font-weight: 900; line-height: 1.2;
+      background: linear-gradient(90deg, var(--text-main), var(--accent-blue));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .sub-logo { font-size: 0.65rem; color: var(--text-muted); }
+
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .streak-badge {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #F59E0B; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: var(--radius-full); line-height: 1;
+    }
+    .privacy-status-pill {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-green); font-size: 0.72rem; font-weight: 600; padding: 6px 12px; border-radius: var(--radius-full); line-height: 1;
+    }
+
+    .app-main { flex: 1; padding: 16px; }
+    .tab-pane { display: none; animation: fadeIn 0.3s ease forwards; }
+    .tab-pane.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow-card); }
+    .card-hero { background: linear-gradient(135deg, rgba(0, 242, 254, 0.12), rgba(16, 185, 129, 0.04)); border: 1px solid var(--border-glow); }
+    .hero-content h2 { font-size: 1.25rem; font-weight: 800; margin: 6px 0 4px 0; color: var(--text-main); }
+    .hero-desc { font-size: 0.84rem; color: var(--text-muted); line-height: 1.45; }
+    .date-badge { display: inline-flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); font-size: 0.72rem; font-weight: 600; padding: 4px 10px; border-radius: 4px; color: var(--accent-blue); line-height: 1; }
+
+    .security-alert { display: flex; align-items: center; gap: 10px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #FCA5A5; padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 0.8rem; line-height: 1.4; }
+    .hidden { display: none !important; }
+
+    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .form-header h3 { font-size: 1.05rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; line-height: 1.2; color: var(--text-main); }
+    .entry-type-selector { display: flex; gap: 12px; }
+    .radio-label { font-size: 0.82rem; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; line-height: 1; }
+    .radio-label input { accent-color: var(--accent-blue); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .form-group label { display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; color: var(--text-muted); margin-bottom: 6px; line-height: 1; }
+    .select-input { width: 100%; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 9px 12px; font-size: 0.85rem; outline: none; }
+
+    .score-category-group { margin-bottom: 14px; }
+    .score-category-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .score-cat-btn {
+      background: var(--bg-input); border: 2px solid var(--border-color); border-radius: var(--radius-sm);
+      padding: 12px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; color: var(--text-muted); position: relative;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .score-cat-btn:active { transform: scale(0.94); }
+    
+    .score-cat-btn.selected { transform: translateY(-3px) scale(1.03); }
+    .score-cat-btn[data-cat="攻"].selected { border-color: var(--accent-red); background: rgba(239, 68, 68, 0.2); color: var(--accent-red); box-shadow: 0 0 16px rgba(239, 68, 68, 0.45); }
+    .score-cat-btn[data-cat="投"].selected { border-color: var(--accent-blue); background: rgba(0, 242, 254, 0.2); color: var(--accent-blue); box-shadow: 0 0 16px rgba(0, 242, 254, 0.45); }
+    .score-cat-btn[data-cat="走"].selected { border-color: var(--accent-green); background: rgba(16, 185, 129, 0.2); color: var(--accent-green); box-shadow: 0 0 16px rgba(16, 185, 129, 0.45); }
+    .score-cat-btn[data-cat="守"].selected { border-color: #F59E0B; background: rgba(245, 158, 11, 0.2); color: #F59E0B; box-shadow: 0 0 16px rgba(245, 158, 11, 0.45); }
+    
+    .cat-kanji { font-size: 1.6rem; font-weight: 900; line-height: 1; }
+    .cat-sub { font-size: 0.68rem; font-weight: 600; line-height: 1; }
+    .score-cat-hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 8px; }
+
+    .input-area-wrapper { margin-bottom: 16px; }
+    .input-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .toolbar-title { font-size: 0.78rem; color: var(--text-muted); }
+    .btn-voice-toggle { background: rgba(0, 242, 254, 0.2); border: 1px solid var(--accent-blue); color: var(--accent-blue); padding: 6px 14px; border-radius: var(--radius-full); font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; line-height: 1; }
+    .main-textarea { width: 100%; background: var(--bg-input); color: var(--text-main); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; font-size: 0.9rem; line-height: 1.5; outline: none; resize: vertical; }
+
+    .privacy-preview-box { margin-top: 10px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 14px; }
+    .privacy-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.76rem; color: var(--text-muted); margin-bottom: 6px; line-height: 1; }
+    .privacy-header > span:first-child { display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
+    .badge-safe { display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--accent-green); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 700; line-height: 1; }
+    .privacy-preview-text { font-size: 0.8rem; color: var(--text-sub); white-space: pre-wrap; line-height: 1.45; }
+
+    .btn-primary { background: linear-gradient(135deg, var(--accent-blue), #4FACFE); color: #0B0F19; border: none; font-weight: 700; padding: 14px; border-radius: var(--radius-sm); font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; line-height: 1; }
+    
+    .btn-save-bottom {
+      background: linear-gradient(135deg, var(--accent-green), #059669);
+      color: #FFF; border: none; font-weight: 700; padding: 7px 16px;
+      border-radius: var(--radius-full); font-size: 0.78rem; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      line-height: 1; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      transition: var(--transition-fast);
+    }
+    .btn-save-bottom:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4); }
+
+    .btn-purple-large {
+      background: linear-gradient(135deg, var(--accent-purple), #7E22CE);
+      color: #FFF; border: none; font-weight: 900; padding: 16px 20px;
+      border-radius: var(--radius-md); font-size: 1.05rem; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+      transition: var(--transition-fast);
+    }
+    .btn-purple-large:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(168, 85, 247, 0.55); }
+    .btn-purple-large:active { transform: scale(0.98); }
+
+    .cleaned-text-wrapper { position: relative; display: flex; flex-direction: column; gap: 8px; }
+    
+    .cleaned-text-box {
+      background: var(--bg-input); color: var(--text-main); padding: 14px;
+      border-radius: var(--radius-sm); border-left: 4px solid var(--accent-blue);
+      font-size: 0.9rem; line-height: 1.65; white-space: pre-wrap;
+    }
+    .cleaned-footer-action { display: flex; justify-content: flex-end; margin-top: 4px; }
+
+    .scores-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .score-card { background: var(--bg-input); padding: 10px; border-radius: var(--radius-sm); text-align: center; }
+    .score-label { font-size: 0.7rem; color: var(--text-muted); display: block; }
+    .score-val { font-size: 1.6rem; font-weight: 900; color: var(--accent-blue); line-height: 1.2; }
+    .score-bar { height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+    .score-fill { height: 100%; background: linear-gradient(90deg, var(--accent-blue), #4FACFE); }
+
+    .result-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; margin-top: 14px; }
+    .bullet-box-ui { background: var(--bg-input); border-radius: var(--radius-md); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+
+    .box-good-ui { border: 1px solid rgba(16, 185, 129, 0.35); border-top: 3px solid var(--accent-green); background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), transparent 70%); }
+    .box-good-ui h5 { color: var(--accent-green); font-size: 0.82rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
+    .box-good-ui li {
+      font-size: 0.78rem; color: var(--text-main); line-height: 1.45;
+      background: var(--bg-input); padding: 8px 10px; border-radius: var(--radius-sm);
+      display: flex; align-items: flex-start; gap: 6px; border-left: 3px solid var(--accent-green);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .box-issue-ui { border: 1px solid rgba(239, 68, 68, 0.35); border-top: 3px solid var(--accent-red); background: linear-gradient(180deg, rgba(239, 68, 68, 0.1), transparent 70%); }
+    .box-issue-ui h5 { color: var(--accent-red); font-size: 0.82rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; line-height: 1; }
+    .box-issue-ui li {
+      font-size: 0.78rem; color: var(--text-main); line-height: 1.45;
+      background: var(--bg-input); padding: 8px 10px; border-radius: var(--radius-sm);
+      display: flex; align-items: flex-start; gap: 6px; border-left: 3px solid var(--accent-red);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .advice-card-ui { background: linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(79, 172, 254, 0.05)); border: 1px solid rgba(0, 242, 254, 0.3); border-radius: var(--radius-md); padding: 16px; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .advice-card-header { display: flex; align-items: center; justify-content: space-between; }
+    .advice-badge-title { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 800; color: var(--accent-blue); }
+    .advice-card-body {
+      font-size: 0.85rem; color: var(--text-main); line-height: 1.55;
+      background: var(--bg-input); padding: 12px 14px; border-radius: var(--radius-sm);
+      border-left: 3.5px solid var(--accent-blue);
+    }
+
+    /* ✨ プレミアム AI分析カードスタイル */
+    .premium-hero-card {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(0, 242, 254, 0.12));
+      border: 1px solid var(--accent-purple); box-shadow: 0 0 25px rgba(168, 85, 247, 0.25);
+    }
+    .badge-premium {
+      display: inline-flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.2);
+      border: 1px solid var(--accent-purple); color: var(--accent-purple); font-size: 0.72rem;
+      font-weight: 800; padding: 4px 10px; border-radius: var(--radius-full); line-height: 1;
+    }
+
+    .analysis-placeholder-box {
+      text-align: center; padding: 32px 18px; background: var(--bg-card);
+      border: 2px dashed rgba(168, 85, 247, 0.4); border-radius: var(--radius-md);
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .analysis-placeholder-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: rgba(168, 85, 247, 0.15); border: 1px solid var(--accent-purple);
+      color: var(--accent-purple); display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+    }
+
+    .analysis-section-box {
+      background: var(--bg-input); border-radius: var(--radius-md); padding: 16px;
+      margin-bottom: 14px; border-left: 4px solid var(--accent-purple);
+    }
+    .analysis-section-box h4 {
+      font-size: 0.92rem; font-weight: 800; color: var(--accent-purple);
+      display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .analysis-section-box p { font-size: 0.86rem; color: var(--text-main); line-height: 1.6; }
+    
+    .drill-item-card {
+      background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+      padding: 12px 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .drill-title { font-size: 0.85rem; font-weight: 800; color: var(--accent-blue); display: flex; align-items: center; gap: 6px; }
+    .drill-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.45; }
+
+    .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .calendar-controls { display: flex; align-items: center; gap: 10px; }
+    .calendar-controls button { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; line-height: 1; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; margin-bottom: 12px; }
+    .cal-day-header { font-size: 0.74rem; color: var(--text-sub); padding: 6px 0; font-weight: 700; }
+    .cal-day-cell { aspect-ratio: 1; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.82rem; cursor: pointer; position: relative; color: var(--text-main); }
+    .cal-day-cell.today { border-color: var(--accent-blue); background: rgba(0, 242, 254, 0.1); }
+    
+    .cal-dot-blue {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--accent-blue);
+      box-shadow: 0 0 6px var(--accent-blue); margin-top: 3px;
+    }
+
+    .journal-list { display: flex; flex-direction: column; gap: 10px; }
+    .journal-btn-card {
+      background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md);
+      padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      cursor: pointer; transition: var(--transition-fast); text-align: left; width: 100%;
+    }
+    .journal-btn-card:hover { border-color: var(--accent-blue); background: var(--bg-card-hover); transform: translateY(-1px); }
+    .journal-btn-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .journal-btn-date { font-size: 0.75rem; font-weight: 700; color: var(--accent-blue); display: inline-flex; align-items: center; gap: 6px; }
+    .journal-btn-title { font-size: 0.86rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+    .chart-header h3 { font-size: 0.98rem; font-weight: 700; white-space: nowrap; color: var(--text-main); }
+    .chart-selector { display: flex; gap: 4px; flex-shrink: 0; }
+    .btn-tab-chart { background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-muted); padding: 6px 10px; border-radius: var(--radius-sm); font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: var(--transition-fast); white-space: nowrap; flex-shrink: 0; line-height: 1; }
+    .btn-tab-chart.active { background: var(--accent-blue); color: #000; border-color: var(--accent-blue); }
+    .line-chart-box { width: 100%; height: 210px; position: relative; margin-top: 8px; }
+
+    .leaderboard-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .leaderboard-item { display: flex; align-items: center; justify-content: space-between; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 14px; transition: var(--transition-fast); color: var(--text-main); }
+
+    .setting-group { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+    .setting-item { display: flex; justify-content: space-between; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--border-color); }
+    .setting-label { display: flex; flex-direction: column; gap: 2px; }
+    .setting-label strong { font-size: 0.88rem; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px; line-height: 1.2; }
+
+    .toggle-switch { position: relative; width: 48px; height: 26px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-switch label { position: absolute; cursor: pointer; inset: 0; background-color: #374151; border-radius: 34px; transition: .3s; }
+    .toggle-switch label:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
+    .toggle-switch input:checked + label { background-color: var(--accent-blue); }
+    .toggle-switch input:checked + label:before { transform: translateX(22px); }
+
+    .btn-danger { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: var(--accent-red); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: var(--transition-fast); }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+    .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 540px; height: 65px; background: var(--bg-glass); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--border-color); display: grid; grid-template-columns: repeat(6, 1fr); z-index: 1000; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-muted); background: none; border: none; font-size: 0.62rem; font-weight: 600; cursor: pointer; }
+    .nav-item.active { color: var(--accent-blue); }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-md); width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; padding: 18px; color: var(--text-main); }
+
+    /* トーストポップアップの2ボタンレイアウト */
+    .toast-modal-card {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(0, 242, 254, 0.18));
+      border: 2px solid var(--accent-blue); border-radius: var(--radius-lg);
+      padding: 20px 24px; text-align: center; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px; max-width: 330px;
+      box-shadow: 0 0 35px rgba(0, 242, 254, 0.45); backdrop-filter: blur(12px);
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.75); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .toast-icon-circle {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), #2563EB);
+      color: #0B0F19; display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: bold; box-shadow: 0 0 18px rgba(0, 242, 254, 0.6);
+      margin-bottom: 2px;
+    }
+    .toast-modal-card h3 {
+      font-size: 1.2rem; font-weight: 900; color: #FFFFFF; line-height: 1.1; margin: 0;
+    }
+    .toast-modal-card p {
+      font-size: 0.82rem; color: rgba(255, 255, 255, 0.88); line-height: 1.4; margin: 0;
+    }
+    .toast-btn-group {
+      display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-top: 6px;
+    }
+    .btn-toast-close {
+      background: linear-gradient(135deg, var(--accent-green), #059669);
+      color: #FFFFFF; border: none; font-size: 0.82rem; font-weight: 800; padding: 8px 18px;
+      border-radius: var(--radius-full); cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      transition: var(--transition-fast); flex: 1;
+    }
+    .btn-toast-close:hover { transform: translateY(-1px); }
+    
+    .btn-undo-sub {
+      background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.85); font-size: 0.76rem; font-weight: 600; padding: 8px 14px;
+      border-radius: var(--radius-full); cursor: pointer; display: inline-flex;
+      align-items: center; justify-content: center; gap: 4px; transition: var(--transition-fast);
+    }
+    .btn-undo-sub:hover { background: rgba(255, 255, 255, 0.25); color: #FFF; }
+  </style>
+</head>
+<body>
+
+  <div id="app" class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon"><i data-lucide="trophy"></i></div>
+        <div class="logo-text">
+          <h1>AI野球ノート</h1>
+          <span class="sub-logo">高校生・本格野球ノート & AI Coach</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="streak-badge" id="streakBadge"><i data-lucide="flame"></i><span id="streakCount">0</span>日</div>
+        <div class="privacy-status-pill"><i data-lucide="shield-check"></i><span>防衛ON</span></div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-main" id="mainContent">
+      
+      <!-- TAB 1: ノート作成 & AI清書 -->
+      <section id="tab-write" class="tab-pane active">
+        <div class="card card-hero">
+          <div class="hero-content">
+            <span class="date-badge" id="currentDateDisplay">2026年8月3日 (月)</span>
+            <h2>今日も始めましょう！</h2>
+            <p class="hero-desc">感じたことや反省を書くだけで、AIが野球ノート風に清書！分析！</p>
+          </div>
+        </div>
+
+        <div id="securityAlertBanner" class="security-alert hidden">
+          <i data-lucide="shield-alert"></i>
+          <div class="alert-text">学校名・個人名等の固有情報を自動的に匿名化保護します。</div>
+        </div>
+
+        <div class="card input-card">
+          <div class="form-header">
+            <h3><i data-lucide="edit-3"></i> ノート作成</h3>
+            <div class="entry-type-selector">
+              <label class="radio-label"><input type="radio" name="entryCategory" value="練習" checked> 練習</label>
+              <label class="radio-label"><input type="radio" name="entryCategory" value="試合"> 試合</label>
+              <label class="radio-label"><input type="radio" name="entryCategory" value="自主練"> 自主練</label>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label><i data-lucide="user"></i> ポジション/役割</label>
+              <select id="inputPosition" class="select-input">
+                <option value="センター" selected>センター (中堅手)</option>
+                <option value="レフト">レフト (左翼手)</option>
+                <option value="ライト">ライト (右翼手)</option>
+                <option value="ピッチャー">ピッチャー (投手)</option>
+                <option value="キャッチャー">キャッチャー (捕手)</option>
+                <option value="ショート">ショート (遊撃手)</option>
+                <option value="サード">サード (三塁手)</option>
+                <option value="セカンド">セカンド (二塁手)</option>
+                <option value="ファースト">ファースト (一塁手)</option>
+                <option value="DH / 打者">DH / 打者</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label><i data-lucide="smile"></i> コンディション</label>
+              <select id="inputCondition" class="select-input">
+                <option value="絶好調">🔥🔥 絶好調 (5/5)</option>
+                <option value="好調" selected>👍 好調 (4/5)</option>
+                <option value="普通">👌 普通 (3/5)</option>
+                <option value="やや不調">😅 やや不調 (2/5)</option>
+                <option value="不調">🌧️ 不調 (1/5)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group score-category-group">
+            <label><i data-lucide="layers"></i> 今日の記録内容（複数選択可）</label>
+            <div class="score-category-btns" id="scoreCategoryBtns">
+              <button type="button" class="score-cat-btn" data-cat="攻">
+                <span class="cat-kanji">攻</span><span class="cat-sub">打撃</span>
+              </button>
+              <button type="button" class="score-cat-btn" data-cat="投">
+                <span class="cat-kanji">投</span><span class="cat-sub">投球</span>
+              </button>
+              <button type="button" class="score-cat-btn" data-cat="走">
+                <span class="cat-kanji">走</span><span class="cat-sub">走塁</span>
+              </button>
+              <button type="button" class="score-cat-btn" data-cat="守">
+                <span class="cat-kanji">守</span><span class="cat-sub">守備</span>
+              </button>
+            </div>
+            <p class="score-cat-hint">※ 記録する項目をタップしてください（選んだ項目のスコアが出力されます）</p>
+          </div>
+
+          <div class="input-area-wrapper">
+            <div class="input-toolbar">
+              <span class="toolbar-title">メモ・気づき（自由入力・音声入力OK）</span>
+              <button type="button" id="btnVoiceInput" class="btn-voice-toggle">
+                <i data-lucide="mic"></i><span id="voiceBtnText">音声入力スタート</span>
+              </button>
+            </div>
+
+            <textarea id="rawNoteInput" class="main-textarea" rows="5" placeholder="例：1年生にかかわらず2年生も遅刻が目立った。準備が20分遅れた。ライトのカバーに行ったとき、球を見ていたためライトとぶつかってしまい、ただのフライがホームランになってしまった。たたき成功率80%を超えることができ、また長打と強いゴロの両立ができるようになった。"></textarea>
+            
+            <div class="privacy-preview-box">
+              <div class="privacy-header">
+                <span><i data-lucide="lock"></i> 自動マスキングプレビュー</span>
+                <span id="detectedEntityCount" class="badge-safe">固有情報 0件</span>
+              </div>
+              <div id="maskedPreviewText" class="privacy-preview-text">（入力した個人名・学校名は自動的にマスキング保護されます）</div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="btnGenerateAI" class="btn-primary">
+              <i data-lucide="sparkles"></i> AIで清書 & 分析を実行する
+            </button>
+          </div>
+        </div>
+
+        <div id="aiResultContainer" class="ai-result-section hidden">
+          <div class="card result-card">
+            
+            <div class="result-header">
+              <h3 style="display:inline-flex;align-items:center;gap:6px;font-size:1.05rem;font-weight:800;">
+                <i data-lucide="sparkles" style="color:var(--accent-blue)"></i> AI清書
+              </h3>
+            </div>
+
+            <div class="result-block">
+              <div class="cleaned-text-wrapper">
+                <div id="aiCleanedText" class="cleaned-text-box"></div>
+                <div class="cleaned-footer-action">
+                  <button type="button" id="btnSaveNote" class="btn-save-bottom">
+                    <i data-lucide="check"></i> 保存する
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="result-block">
+              <h4 class="block-title"><i data-lucide="bar-chart-2"></i> スコア評価</h4>
+              <div class="scores-grid" id="dynamicScoresGrid"></div>
+            </div>
+
+            <div class="result-grid-2">
+              <div class="bullet-box-ui box-good-ui">
+                <h5><i data-lucide="check-circle"></i> よかった点</h5>
+                <ul id="aiGoodPoints"></ul>
+              </div>
+              <div class="bullet-box-ui box-issue-ui">
+                <h5><i data-lucide="alert-circle"></i> 反省・課題</h5>
+                <ul id="aiIssues"></ul>
+              </div>
+            </div>
+
+            <div class="advice-card-ui">
+              <div class="advice-card-header">
+                <span class="advice-badge-title"><i data-lucide="sparkles"></i> 明日のAIコーチアドバイス</span>
+              </div>
+              <div class="advice-card-body" id="aiImmediateAdvice"></div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TAB 2: カレンダー & 履歴 -->
+      <section id="tab-calendar" class="tab-pane">
+        <div class="card">
+          <div class="calendar-header">
+            <h3 style="display:inline-flex;align-items:center;gap:6px;"><i data-lucide="calendar"></i> 野球ノート カレンダー</h3>
+            <div class="calendar-controls">
+              <button type="button" id="btnPrevMonth">＜</button>
+              <span id="calendarMonthYear" style="font-weight:700;">2026年8月</span>
+              <button type="button" id="btnNextMonth">＞</button>
+            </div>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+        
+        <h4 style="font-size:0.95rem;font-weight:800;margin-bottom:10px;display:inline-flex;align-items:center;gap:6px;">
+          <i data-lucide="history" style="color:var(--accent-blue)"></i> 野球ノート記入履歴
+        </h4>
+        <div id="journalListContainer" class="journal-list"></div>
+      </section>
+
+      <!-- TAB 3: 傾向分析 ＆ 実データ専用グラフ -->
+      <section id="tab-analytics" class="tab-pane">
+        
+        <div class="card card-hero">
+          <div class="hero-content">
+            <h2 style="display:inline-flex;align-items:center;gap:6px;"><i data-lucide="trending-up"></i> 蓄積データ傾向 & 成長グラフ</h2>
+            <p class="hero-desc">日々のノートデータからあなたのスキル成長・課題傾向をAIが自動分析して可視化します。</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="chart-header">
+            <h3 style="display:inline-flex;align-items:center;gap:6px;font-size:0.98rem;white-space:nowrap;"><i data-lucide="activity" style="color:var(--accent-blue)"></i> パフォーマンス推移</h3>
+            <div class="chart-selector">
+              <button type="button" class="btn-tab-chart active" data-chart="batting">打撃</button>
+              <button type="button" class="btn-tab-chart" data-chart="pitching">投・守</button>
+              <button type="button" class="btn-tab-chart" data-chart="condition">体調</button>
+            </div>
+          </div>
+
+          <div id="lineChartContainer" class="line-chart-box"></div>
+          
+          <div style="font-size:0.72rem;color:var(--text-sub);margin-top:8px;text-align:right;">
+            <span>※ ポイントをタップすると該当日のノートが開きます</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4 id="tendencyBattingTitle" style="font-size:0.95rem;font-weight:700;">データ分析レポート</h4>
+          <p id="tendencyBattingDesc" style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;line-height:1.45;"></p>
+        </div>
+
+      </section>
+
+      <!-- ✨ TAB 4: ✨新機能✨ AI分析 (プレミアム深層分析) -->
+      <section id="tab-ai-analysis" class="tab-pane">
+        <div class="card premium-hero-card">
+          <div class="hero-content">
+            <span class="badge-premium"><i data-lucide="sparkles"></i> PRO ANALYTICS</span>
+            <h2 style="margin-top:8px;"><i data-lucide="brain" style="color:var(--accent-purple)"></i> 本格 AI 深層プレー分析</h2>
+            <p class="hero-desc">最新のAIアナリティクスが日々の練習・試合メモからあなたの癖・フォーム課題・一人でできる練習メニューをプロレベルで特別分析します。</p>
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <button type="button" id="btnRunDeepAnalysis" class="btn-purple-large">
+            <i data-lucide="sparkles"></i> ✨ AI深層分析を実行する
+          </button>
+        </div>
+
+        <!-- 未生成時のプレミアム案内カード -->
+        <div id="analysisPlaceholder" class="analysis-placeholder-box">
+          <div class="analysis-placeholder-icon"><i data-lucide="lock"></i></div>
+          <h4 style="font-size:1.05rem;font-weight:800;color:var(--text-main);">プロレベル深層分析レポート</h4>
+          <p style="font-size:0.84rem;color:var(--text-muted);line-height:1.55;max-width:380px;">
+            上の「✨ AI深層分析を実行する」ボタンを押すと、先進のAIが最新ノートから「技術分析」「実戦判断」および「家でできる練習」「外で一人でできる練習」を即座に特別解析します。
+          </p>
+        </div>
+
+        <!-- 生成後のレポート結果コンテナ -->
+        <div id="aiDeepAnalysisContainer" class="hidden">
+          <div class="analysis-section-box">
+            <h4><i data-lucide="activity"></i> 【技術・メカニクス深層分析】</h4>
+            <p id="deepTechText"></p>
+          </div>
+
+          <div class="analysis-section-box" style="border-left-color:var(--accent-blue)">
+            <h4 style="color:var(--accent-blue)"><i data-lucide="target"></i> 【実戦戦術・状況判断分析】</h4>
+            <p id="deepTacticalText"></p>
+          </div>
+
+          <!-- 🏠 家でできる練習メニュー -->
+          <div class="card" style="background:var(--bg-card);padding:14px;border:1px solid rgba(16, 185, 129, 0.3);margin-bottom:14px;">
+            <h4 style="font-size:0.92rem;font-weight:800;color:var(--accent-green);margin-bottom:8px;display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="home"></i> 🏠 【家で一人でできる練習メニュー】
+            </h4>
+            <div id="homeDrillsContainer"></div>
+          </div>
+
+          <!-- ⚾ 外で一人でできる練習メニュー -->
+          <div class="card" style="background:var(--bg-card);padding:14px;border:1px solid rgba(0, 242, 254, 0.3);margin-bottom:0;">
+            <h4 style="font-size:0.92rem;font-weight:800;color:var(--accent-blue);margin-bottom:8px;display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="sun"></i> ⚾ 【外で一人でできる練習メニュー】
+            </h4>
+            <div id="outdoorDrillsContainer"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TAB 5: ストリーク ＆ 全国ランキング -->
+      <section id="tab-streak" class="tab-pane">
+        <div class="card card-hero">
+          <div class="hero-content" style="text-align:center;">
+            <i data-lucide="flame" style="width:48px;height:48px;color:#F59E0B;margin-bottom:6px;"></i>
+            <span style="font-size:0.8rem;color:var(--text-muted);display:block;">現在の連続記入記録</span>
+            <div style="font-size:2.8rem;font-weight:900;color:#F59E0B;line-height:1.1;" id="displayStreakLarge">0</div>
+            <span style="font-size:0.9rem;font-weight:700;color:var(--text-main);">日連続記入中！</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form-header">
+            <h3><i data-lucide="trophy" style="color:#F59E0B"></i> 全国ストリークランキング (完全匿名)</h3>
+            <span class="badge-safe"><i data-lucide="lock"></i> 個人情報非公開</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--text-sub);margin-bottom:10px;">全国の選手たちが毎日野球ノートを書き続けている連続記録のランキングです。</p>
+
+          <div class="leaderboard-list" id="leaderboardList"></div>
+        </div>
+      </section>
+
+      <!-- TAB 6: 設定 -->
+      <section id="tab-settings" class="tab-pane">
+        <div class="card">
+          <h3 style="display:inline-flex;align-items:center;gap:6px;"><i data-lucide="settings"></i> アプリ設定</h3>
+          
+          <div class="setting-group">
+            
+            <div class="setting-item">
+              <div class="setting-label">
+                <strong><i data-lucide="moon"></i> 外観モード (ダーク / ライト)</strong>
+                <span>暗い場所でも見やすいダークモードと明るい画面を切り替えます</span>
+              </div>
+              <div class="toggle-switch">
+                <input type="checkbox" id="themeToggle" checked>
+                <label for="themeToggle"></label>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label">
+                <strong><i data-lucide="shield"></i> プライバシー・防衛フィルター強度</strong>
+                <span>学校名、相手校名、個人名、戦術漏洩を防ぐガードの強度</span>
+              </div>
+              <select id="privacyLevelSelect" class="select-input select-sm" style="width:auto;">
+                <option value="strict" selected>高 (自動完全マスキング)</option>
+                <option value="medium">中 (警告表示 + マスキング)</option>
+                <option value="low">低 (警告表示のみ)</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div style="margin-top:20px;">
+            <button type="button" id="btnResetData" class="btn-danger"><i data-lucide="trash-2"></i> ノートデータを初期化して0件に戻す</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <button type="button" class="nav-item active" data-tab="tab-write"><i data-lucide="edit-3"></i><span>ノート</span></button>
+      <button type="button" class="nav-item" data-tab="tab-calendar"><i data-lucide="calendar"></i><span>カレンダー</span></button>
+      <button type="button" class="nav-item" data-tab="tab-analytics"><i data-lucide="trending-up"></i><span>傾向</span></button>
+      <button type="button" class="nav-item" data-tab="tab-ai-analysis"><i data-lucide="brain" style="color:var(--accent-purple)"></i><span>AI分析</span></button>
+      <button type="button" class="nav-item" data-tab="tab-streak"><i data-lucide="flame"></i><span>記録</span></button>
+      <button type="button" class="nav-item" data-tab="tab-settings"><i data-lucide="settings"></i><span>設定</span></button>
+    </nav>
+
+    <!-- Modal (詳細表示) -->
+    <div id="noteDetailModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h3 id="modalDateTitle">ノート詳細</h3>
+        <div id="modalBodyContent" style="margin-top:12px;"></div>
+        <button type="button" id="btnCloseModal" class="btn-primary" style="margin-top:14px;">閉じる</button>
+      </div>
+    </div>
+
+    <!-- 🎉 2ボタン型「保存完了」ポップアップ (閉じる ＆ 元に戻す) -->
+    <div id="toastModal" class="modal-overlay hidden">
+      <div class="toast-modal-card">
+        <div class="toast-icon-circle"><i data-lucide="check"></i></div>
+        <h3 id="toastTitleText">保存完了！</h3>
+        <p id="toastBodyText">同日のノートを最新情報で更新しました。</p>
+        
+        <div class="toast-btn-group">
+          <button type="button" id="btnCloseToast" class="btn-toast-close">閉じる</button>
+          <button type="button" id="btnUndoSave" class="btn-undo-sub"><i data-lucide="rotate-ccw"></i> 元に戻す</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Bundled Scripts -->
+  <script src="privacyFilter.js"></script>
+  <script src="aiEngine.js"></script>
+  <script src="charts.js"></script>
+  <script src="calendar.js"></script>
+  <script src="exporter.js"></script>
+  <script src="voice.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
