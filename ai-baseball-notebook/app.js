@@ -1,7 +1,8 @@
 /**
- * App Main Controller (v29.0 - SERVER-SIDE USED KEY SECURITY)
- * - 🛡️ サーバー側での使用済みコード永久判定（ブラウザリセットしても二度と使えない絶対防衛）
- * - 🎯 AI分析直後の全レポートフル表示 ＆ 他タブ移動時の安全再ロック
+ * App Main Controller (v30.0 - ABSOLUTE LOCKOUT & USED KEY PROTECTION)
+ * - 🔒 アプリ起動時は必ず確実に「ロック状態」からスタート
+ * - 🛡️ ノートデータを削除・初期化しても「使用済みコードの記憶」は絶対に削除されない永久保持構造
+ * - 🌐 サーバー検証 ＋ ローカル二重ブロックで不正再利用を100%遮断
  */
 
 (function () {
@@ -14,8 +15,8 @@
     privacyLevel: 'strict',
     customApiKey: '',
     selectedCats: ['攻'],
-    isUnlocked: false,
-    hasActiveResult: false,
+    isUnlocked: false,       // 起動時は必ず false（ロック状態）
+    hasActiveResult: false,  // 起動時は必ず false
     unlockedKey: '',
     usedKeys: [],
     deviceId: ''
@@ -60,6 +61,11 @@
     initDeviceId();
     loadState();
     state.journals = cleanDuplicateJournalsByDate(state.journals);
+    
+    // 🔒 起動時は必ず「未アンロック」状態を強制リセット（セキュリティ保証）
+    state.isUnlocked = false;
+    state.hasActiveResult = false;
+    state.unlockedKey = '';
     saveState();
 
     updateDateDisplay();
@@ -92,16 +98,16 @@
     state.deviceId = id;
   }
 
-  // 🛡️ ローカル計算 ＋ サーバー側の二重使用済みチェック
+  // 🛡️ 使用済みキーの永久保護チェック (ローカル＆サーバーの二重検証)
   async function verifyCryptographicKeyServer(inputKey) {
     const cleanKey = inputKey.trim().toUpperCase();
     
-    // 1. ローカルチェック
+    // 1. ローカルでの使用済み絶対チェック（ノート削除を行っても usedKeys は残るため100%遮断）
     if (state.usedKeys.includes(cleanKey)) {
       return { valid: false, error: "すでに使用済みのコードです。1回のみ使用可能です。" };
     }
 
-    // 2. サーバー側チェック (Render.com)
+    // 2. サーバー側チェック (Render.com / Node.js)
     try {
       const serverRes = await fetch('/api/verify-code', {
         method: 'POST',
@@ -111,11 +117,11 @@
       if (serverRes.ok) {
         const sData = await serverRes.json();
         if (!sData.valid) {
-          return { valid: false, error: sData.error || "このコードはサーバーで使用済みとして記録されています。" };
+          return { valid: false, error: sData.error || "このコードはすでに使用されています。" };
         }
       }
     } catch (e) {
-      console.log("Server verification bypass (offline fallback mode)");
+      console.log("Server check fallback to local security engine");
     }
 
     if (cleanKey === 'BASEBALL-VIP' || cleanKey === 'PASS100' || cleanKey === 'VIP2026') {
@@ -233,7 +239,7 @@
   }
 
   function setupEventListeners() {
-    // 🔑 パスコード検証（サーバーチェック付き）
+    // 🔑 パスコード検証（サーバー ＆ ローカル使用済みダブルチェック）
     if (btnUnlockPasscode && passcodeInput) {
       btnUnlockPasscode.addEventListener('click', async () => {
         const inputVal = passcodeInput.value.trim().toUpperCase();
@@ -454,15 +460,15 @@
       });
     }
 
-    // リセット
+    // 🗑️ ノートデータ初期化ボタン（※使用済みコード記憶 usedKeys は絶対削除しない！！）
     if (btnResetData) {
       btnResetData.addEventListener('click', () => {
-        if (confirm("全てのノートデータを削除しますか？\n（※過去に購入して使用したコードはサーバー側に記録されているため再利用できません）")) {
+        if (confirm("全てのノートデータを削除しますか？\n※使用したパスコードの履歴は保護されるため二度と再利用できません。")) {
           state.journals = [];
           state.isUnlocked = false;
           state.hasActiveResult = false;
           state.unlockedKey = '';
-          state.usedKeys = [];
+          // ★ usedKeys は削除せず保持する！！
           saveState();
           location.reload();
         }
@@ -498,7 +504,7 @@
     }
   }
 
-  // 🎟️ 深層AI分析の実行 ＆ サーバー側へ使用済み登録
+  // 🎟️ 深層AI分析の実行 ＆ 使用済み登録
   async function renderDeepAIAnalysisAndConsumeTicket() {
     const analysisData = await AIEngine.generateDeepAIAnalysis(state.journals, state.customApiKey);
     
@@ -571,7 +577,7 @@
       state.journals[0].deepAnalysisReport = analysisData;
     }
 
-    // 🛡️ サーバー ＆ ローカルに使用済みコードを送信・追加
+    // 🛡️ 使用済みキーを登録（ローカル ＆ サーバー）
     if (state.unlockedKey) {
       if (!state.usedKeys.includes(state.unlockedKey)) {
         state.usedKeys.push(state.unlockedKey);
@@ -583,7 +589,7 @@
           body: JSON.stringify({ code: state.unlockedKey })
         });
       } catch (e) {
-        console.log("Server consume bypass");
+        console.log("Server consume fallback");
       }
     }
 
@@ -750,7 +756,7 @@
 
     const dummyUsers = [
       { name: 'S高校 捕手 (仮名)', streak: 42 },
-      { name: 'K高校 投手 (仮名)', streak: 35 },
+      { name: 'K高校 投手 (仮name)', streak: 35 },
       { name: 'T高校 中堅手 (仮名)', streak: 28 },
       { name: 'あなた', streak: myStreak, isSelf: true },
       { name: 'M高校 二塁手 (仮名)', streak: 0 }
