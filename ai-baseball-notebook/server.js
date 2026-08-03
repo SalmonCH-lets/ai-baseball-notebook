@@ -5,20 +5,25 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🛡️ APIキーは Render.com の環境変数 GEMINI_API_KEY からのみ安全に取得
+// 🛡️ APIキーは Render.com の環境変数 GEMINI_API_KEY から安全に読み込み
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// 🛡️ Gemini API キーをサーバー側に隠蔽して安全に代理呼び出しするAPIエンドポイント
+// 🛡️ サーバープロキシ API エンドポイント
 app.post('/api/gemini', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-  const activeKey = GEMINI_API_KEY || req.headers['x-goog-api-key'];
-  if (!activeKey) return res.status(500).json({ error: "API Key not configured" });
+  const activeKey = (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) 
+    ? process.env.GEMINI_API_KEY.trim() 
+    : "";
+
+  if (!activeKey) {
+    return res.status(500).json({ error: "GEMINI_API_KEY environment variable is missing on Render." });
+  }
 
   const modelCandidates = [
     'gemini-3.5-flash',
@@ -28,14 +33,14 @@ app.post('/api/gemini', async (req, res) => {
   ];
 
   for (const model of modelCandidates) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(activeKey.trim())}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(activeKey)}`;
     
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': activeKey.trim()
+          'x-goog-api-key': activeKey
         },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }]
@@ -45,10 +50,13 @@ app.post('/api/gemini', async (req, res) => {
       const data = await response.json();
       if (response.ok && data.candidates && data.candidates[0] && data.candidates[0].content) {
         const resultText = data.candidates[0].content.parts[0].text;
+        console.log(`[Server Proxy Success (${model})] AI応答取得成功`);
         return res.json({ text: resultText, model });
+      } else {
+        console.warn(`[Server Proxy API Error (${model})]:`, data);
       }
     } catch (e) {
-      console.warn(`[Server Gemini Proxy Error (${model})]:`, e.message);
+      console.warn(`[Server Proxy Fetch Error (${model})]:`, e.message);
     }
   }
 

@@ -1,20 +1,15 @@
 /**
- * AI Clean-up & Coaching Engine (v19.0)
+ * AI Clean-up & Coaching Engine (v21.0 - 100% Clean Security Edition)
+ * - 🛡️ サーバー環境変数(GEMINI_API_KEY)経由の完全セキュリティ仕様
  * - 🎯 清書文章：【200文字程度】＆【高校生らしい自然な言葉遣い】
  * - 🧠 AIアドバイス：感情的・精神論を排除し、論理的かつ具体的なアドバイス
- * - 🏆 AI深層分析：「技術的視野狭窄」等の難解用語を100%追放！高校生が直感的に理解できる平易な言葉で解説
- * - 🏠 ⚾ 「家でできる練習」＆「外で一人でできる練習」に特化したドリル生成
+ * - 🏆 AI深層分析：高校生が直感的に理解できる平易な言葉で解説
  */
 
 const AIEngine = (function () {
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔑 ローカルテスト用のAPIキー（Render.comでは環境変数 GEMINI_API_KEY を使用）
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const GEMINI_API_KEY = ""; 
-
-  async function callGeminiApi(apiKey, prompt) {
-    // 🛡️ 1. サーバープロキシ経由呼び出し（APIキー隠蔽・ブラウザに送信しないプロ仕様）
+  async function callGeminiApi(userKey, prompt) {
+    // 🛡️ 1. サーバープロキシ経由呼び出し（Render.comの環境変数 GEMINI_API_KEY を安全に使用）
     try {
       const serverResponse = await fetch('/api/gemini', {
         method: 'POST',
@@ -24,42 +19,26 @@ const AIEngine = (function () {
       if (serverResponse.ok) {
         const serverData = await serverResponse.json();
         if (serverData && serverData.text) {
-          console.log(`🟢 [Server Proxy (${serverData.model})] サーバー経由で安全にAI応答を受信しました！`);
+          console.log(`🟢 [Server Proxy (${serverData.model})] AI応答を受信しました！`);
           return serverData.text;
         }
       }
     } catch (e) {
-      console.log("ℹ️ ローカル直接呼び出しへ移行します。");
+      console.log("ℹ️ サーバー通信待機中...");
     }
 
-    if (!apiKey || apiKey.trim() === "") return null;
-    const trimmedKey = apiKey.trim();
+    // 🛡️ 2. カスタムキー入力時のフォールバック
+    if (userKey && userKey.trim()) {
+      const activeKey = userKey.trim();
+      const modelCandidates = ['gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
-    const modelCandidates = [
-      'gemini-3.5-flash',
-      'gemini-3.5-flash-latest',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash'
-    ];
-
-    for (const model of modelCandidates) {
-      const endpoints = [
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`
-      ];
-
-      for (const url of endpoints) {
+      for (const model of modelCandidates) {
         try {
-          const fullUrl = `${url}?key=${encodeURIComponent(trimmedKey)}`;
-          const response = await fetch(fullUrl, {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(activeKey)}`;
+          const response = await fetch(url, {
             method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'x-goog-api-key': trimmedKey
-            },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            })
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': activeKey },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
           });
 
           const data = await response.json();
@@ -67,7 +46,7 @@ const AIEngine = (function () {
             return data.candidates[0].content.parts[0].text;
           }
         } catch (e) {
-          console.warn(`⚠️ [Gemini (${model})] 通信エラー:`, e);
+          console.warn(`⚠️ [Direct Gemini (${model})] 通信エラー:`, e);
         }
       }
     }
@@ -83,10 +62,8 @@ const AIEngine = (function () {
     }
 
     const sanitized = PrivacyFilter.sanitizeText(rawText, 'strict').maskedText;
-    const activeApiKey = (GEMINI_API_KEY && GEMINI_API_KEY.trim()) ? GEMINI_API_KEY : customApiKey;
 
-    if (activeApiKey && activeApiKey.trim()) {
-      const prompt = `【絶対ルール】
+    const prompt = `【絶対ルール】
 1. 前置き、挨拶、会話文、解説、「〜を用意しました」などの導入文は一切禁止。本文のみ出力。
 2. 文字数は【必ず200文字程度（180文字〜220文字以内）】でコンパクトにまとめてください。
 3. 「猛省」「痛感」「遺憾」「過怠」といった難しい熟語や、AI特有の堅苦しい表現は絶対に使わないでください。
@@ -98,13 +75,12 @@ const AIEngine = (function () {
 【メモ】
 ${sanitized}`;
 
-      const apiResult = await callGeminiApi(activeApiKey, prompt);
-      if (apiResult) {
-        let cleaned = apiResult.trim();
-        cleaned = cleaned.replace(/^(はい[、|。]|承知いたしました[、|。]|以下[は|に|の|が].*?[です|ます|:|：]|今日は.*?用意しました[。|！|\!]*|清書.*?です[。|：|:]*)\s*/gi, '');
-        cleaned = cleaned.replace(/^【.*?ノート】\s*/, '');
-        return cleaned.trim();
-      }
+    const apiResult = await callGeminiApi(customApiKey, prompt);
+    if (apiResult) {
+      let cleaned = apiResult.trim();
+      cleaned = cleaned.replace(/^(はい[、|。]|承知いたしました[、|。]|以下[は|に|の|が].*?[です|ます|:|：]|今日は.*?用意しました[。|！|\!]*|清書.*?です[。|：|:]*)\s*/gi, '');
+      cleaned = cleaned.replace(/^【.*?ノート】\s*/, '');
+      return cleaned.trim();
     }
 
     // --- ローカルAIフォールバック ---
@@ -161,7 +137,7 @@ ${sanitized}`;
   }
 
   // ────────────────────────────────────────────────────────────
-  // 2. 日次分析 ＆ 明日のAIコーチアドバイス（わかりやすい言葉遣い）
+  // 2. 日次分析 ＆ 明日のAIコーチアドバイス
   // ────────────────────────────────────────────────────────────
   async function analyzeDailyJournal(rawText, category, position, condition, selectedCats, customApiKey) {
     const text = rawText || '';
@@ -187,24 +163,17 @@ ${sanitized}`;
     if (goodPoints.length === 0) goodPoints.push('打撃や守備での好プレイ意識を高く保てた。');
     if (badPoints.length === 0) badPoints.push('失敗した場面の連携と判断を次回に活かすこと。');
 
-    let advice = '';
-    const activeApiKey = (GEMINI_API_KEY && GEMINI_API_KEY.trim()) ? GEMINI_API_KEY : customApiKey;
-
-    if (activeApiKey && activeApiKey.trim()) {
-      const advicePrompt = `【指示】あなたは親切で分かりやすい高校野球の技術コーチです。
+    const advicePrompt = `【指示】あなたは親切で分かりやすい高校野球の技術コーチです。
 「頑張れ」「ガッツで」等の精神論は使わないでください。また、「技術的視野狭窄」「メカニクス」「痛感」等の難しい言葉も絶対に使わず、高校生がすぐに理解できる日常的な表現（例：ボールばかり見て周りが見えなくなる癖、タイミングを合わせる練習など）で、明日の練習で気をつける具体的なポイント（100文字〜130文字程度）を出力してください。前置きは不要です。
 
 ポジション: ${position}
 練習/試合: ${category}
 メモ: ${text}`;
 
-      const geminiAdvice = await callGeminiApi(activeApiKey, advicePrompt);
-      if (geminiAdvice) {
-        advice = geminiAdvice.trim().replace(/^(はい[、|。]|承知いたしました[、|。]|アドバイス[：|:]*)\s*/gi, '');
-      }
-    }
-
-    if (!advice) {
+    let advice = await callGeminiApi(customApiKey, advicePrompt);
+    if (advice) {
+      advice = advice.trim().replace(/^(はい[、|。]|承知いたしました[、|。]|アドバイス[：|:]*)\s*/gi, '');
+    } else {
       if (/ぶつかって|カバー/.test(text)) advice = `外野同士の交錯を防ぐため、打球発生の瞬間「オレが捕る」の大声アピールと、センター優先等のコールルールを毎プレー意識して練習しましょう。`;
       else if (/たたき|成功率|両立/.test(text)) advice = `たたき成功率80%と長打・強ゴロの両立は、インパクトの面で作る技術が安定している証拠です。このミート位置の感覚を意識して継続しましょう。`;
       else advice = `練習の意図を明確にし、1球ごとの準備動作と一歩目の反応速度に意識を集中してメニューに取り組みましょう。`;
@@ -217,8 +186,6 @@ ${sanitized}`;
   // 3. ✨AI深層分析（高校生が100%理解できる平易な言葉＆家・外一人練習）
   // ────────────────────────────────────────────────────────────
   async function generateDeepAIAnalysis(journalList, customApiKey) {
-    const activeApiKey = (GEMINI_API_KEY && GEMINI_API_KEY.trim()) ? GEMINI_API_KEY : customApiKey;
-
     if (!journalList || journalList.length === 0) {
       return {
         techAnalysis: "まだノートデータが保存されていません。ノートを作成して保存した後に分析を実行すると、わかりやすいアドバイスが生成されます。",
@@ -237,15 +204,14 @@ ${sanitized}`;
     const latestNote = journalList[0];
     const combinedNotes = journalList.slice(0, 5).map(j => `【${j.date} ${j.position}】${j.rawContent}`).join("\n");
 
-    if (activeApiKey && activeApiKey.trim()) {
-      const prompt = `あなたは高校野球の親身なアナリストコーチです。選手のノート記録をもとに分析レポートを作成してください。
+    const prompt = `あなたは高校野球の親身なアナリストコーチです。選手のノート記録をもとに分析レポートを作成してください。
 
 【過去のノートデータ】
 ${combinedNotes}
 
 【絶対ルール】
 1. 「技術的視野狭窄」「メカニクス」「過怠」「痛感」「遺憾」といった難解な専門用語や硬い熟語は絶対に一切使用しないでください！
-2. 高校生が読んで一目ですぐに理解できる日常的な表現（例：ボールに集中しすぎて周りのカバーが見えなくなる癖、軸足に体重を乗せるタイミングなど）で優しく解説してください。
+2. 高校生が読んで一目ですぐに理解できる日常的な表現で優しく解説してください。
 3. おすすめ練習は「家で一人でできる練習（homeDrills）」と「外で一人でできる練習（outdoorDrills）」の2種類に分け、具体的かつわかりやすく各2つずつ提案してください。
 
 【JSON出力フォーマット】
@@ -262,15 +228,13 @@ ${combinedNotes}
   ]
 }`;
 
-      const resText = await callGeminiApi(activeApiKey, prompt);
-      if (resText) {
-        try {
-          const cleanJson = resText.replace(/```json/g, '').replace(/```/g, '').trim();
-          const parsed = JSON.parse(cleanJson);
-          return parsed;
-        } catch (e) {
-          console.warn("AI Analysis JSON Parse Fallback:", e);
-        }
+    const resText = await callGeminiApi(customApiKey, prompt);
+    if (resText) {
+      try {
+        const cleanJson = resText.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanJson);
+      } catch (e) {
+        console.warn("AI Analysis JSON Parse Fallback:", e);
       }
     }
 
