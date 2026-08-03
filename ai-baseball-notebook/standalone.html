@@ -610,18 +610,18 @@
           <div style="width:56px;height:56px;border-radius:50%;background:rgba(168, 85, 247, 0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 12px auto;box-shadow:0 0 20px rgba(168, 85, 247, 0.3);">
             <i data-lucide="lock"></i>
           </div>
-          <h3 style="font-size:1.1rem;font-weight:900;color:var(--text-main);margin-bottom:6px;">パスコードが必要です</h3>
+          <h3 style="font-size:1.1rem;font-weight:900;color:var(--text-main);margin-bottom:6px;">チケット（パスコード）が必要です</h3>
           <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.55;max-width:380px;margin:0 auto 14px auto;">
-            本格分析機能を利用するにはショップで発行される秘密コード（パスコード）が必要です。コードを入力してロック解除してください。
+            本格分析機能を利用するにはショップで発行される秘密コードが必要です。コードを入力すると【1回分の本格AI分析チケット】を獲得できます。
           </p>
 
           <div style="display:flex;gap:8px;max-width:340px;margin:0 auto 12px auto;">
             <input type="text" id="passcodeInput" class="select-input" placeholder="パスコードを入力 (例: BASEBALL-VIP)" style="text-align:center;font-weight:700;letter-spacing:1px;text-transform:uppercase;">
             <button type="button" id="btnUnlockPasscode" class="btn-save-bottom" style="white-space:nowrap;padding:0 18px;font-size:0.85rem;background:linear-gradient(135deg, var(--accent-purple), #7E22CE);">
-              解除
+              認証
             </button>
           </div>
-          <p id="passcodeErrorMsg" style="color:var(--accent-red);font-size:0.78rem;font-weight:700;" class="hidden">※ 無効なパスコードです。正しく入力してください。</p>
+          <p id="passcodeErrorMsg" style="color:var(--accent-red);font-size:0.78rem;font-weight:700;" class="hidden">※ 無効なコードです。正しく入力してください。</p>
           
           <div style="margin-top:10px;">
             <a href="https://note.com" target="_blank" style="color:var(--accent-blue);font-size:0.78rem;text-decoration:underline;">
@@ -633,8 +633,8 @@
         <!-- 🔓 ロック解除後のコンテンツ表示枠 -->
         <div id="unlockedAnalysisContent" class="hidden">
           <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(16, 185, 129, 0.15);border:1px solid rgba(16, 185, 129, 0.4);color:var(--accent-green);padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:14px;font-size:0.8rem;font-weight:700;">
-            <span><i data-lucide="unlock"></i> 本格分析機能（VIPパス）認証済み</span>
-            <span style="font-size:0.72rem;opacity:0.8;">PRO UNLOCKED</span>
+            <span><i data-lucide="unlock"></i> 本格分析チケット (1回分) 適用中</span>
+            <span style="font-size:0.72rem;opacity:0.8;">READY TO ANALYZE</span>
           </div>
 
           <div style="margin-bottom:16px;">

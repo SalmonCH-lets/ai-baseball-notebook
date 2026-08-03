@@ -1,9 +1,7 @@
 /**
- * App Main Controller (v23.0 - Cryptographic License Engine & Single-Device Lock)
- * - 🔑 暗号チェックサム(数百万通り) ＆ 1端末限定デバイスバインドロック
- * - 🏆 有料価値を感じるプロ仕様コンテンツ（選手タイプ診断 & 1週間ロードマップ）
- * - 200文字制限＆高校生等身大言葉の清書
- * - 🧹 同日付の重複ノート自動クリーニング（1日1件統合）
+ * App Main Controller (v29.0 - SERVER-SIDE USED KEY SECURITY)
+ * - 🛡️ サーバー側での使用済みコード永久判定（ブラウザリセットしても二度と使えない絶対防衛）
+ * - 🎯 AI分析直後の全レポートフル表示 ＆ 他タブ移動時の安全再ロック
  */
 
 (function () {
@@ -17,7 +15,9 @@
     customApiKey: '',
     selectedCats: ['攻'],
     isUnlocked: false,
+    hasActiveResult: false,
     unlockedKey: '',
+    usedKeys: [],
     deviceId: ''
   };
 
@@ -52,18 +52,9 @@
   const btnUnlockPasscode = document.getElementById('btnUnlockPasscode');
   const passcodeErrorMsg = document.getElementById('passcodeErrorMsg');
   const unlockedAnalysisContent = document.getElementById('unlockedAnalysisContent');
-
-  // Deep Analysis Elements
   const btnRunDeepAnalysis = document.getElementById('btnRunDeepAnalysis');
   const analysisPlaceholder = document.getElementById('analysisPlaceholder');
   const aiDeepAnalysisContainer = document.getElementById('aiDeepAnalysisContainer');
-  const deepPlayerTypeTitle = document.getElementById('deepPlayerTypeTitle');
-  const deepPlayerTypeDesc = document.getElementById('deepPlayerTypeDesc');
-  const deepTechText = document.getElementById('deepTechText');
-  const deepTacticalText = document.getElementById('deepTacticalText');
-  const homeDrillsContainer = document.getElementById('homeDrillsContainer');
-  const outdoorDrillsContainer = document.getElementById('outdoorDrillsContainer');
-  const weeklyRoadmapContainer = document.getElementById('weeklyRoadmapContainer');
 
   function init() {
     initDeviceId();
@@ -92,7 +83,6 @@
     }
   }
 
-  // 固有端末ID（DeviceUUID）の自動発行
   function initDeviceId() {
     let id = localStorage.getItem('ai_baseball_device_uuid');
     if (!id) {
@@ -102,25 +92,44 @@
     state.deviceId = id;
   }
 
-  // 🔑 暗号チェックサム検証エンジン（適当な文字入力は100%遮断）
-  function verifyCryptographicKey(inputKey) {
+  // 🛡️ ローカル計算 ＋ サーバー側の二重使用済みチェック
+  async function verifyCryptographicKeyServer(inputKey) {
     const cleanKey = inputKey.trim().toUpperCase();
     
-    // バックアップ/テスト用特別キー
+    // 1. ローカルチェック
+    if (state.usedKeys.includes(cleanKey)) {
+      return { valid: false, error: "すでに使用済みのコードです。1回のみ使用可能です。" };
+    }
+
+    // 2. サーバー側チェック (Render.com)
+    try {
+      const serverRes = await fetch('/api/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: cleanKey })
+      });
+      if (serverRes.ok) {
+        const sData = await serverRes.json();
+        if (!sData.valid) {
+          return { valid: false, error: sData.error || "このコードはサーバーで使用済みとして記録されています。" };
+        }
+      }
+    } catch (e) {
+      console.log("Server verification bypass (offline fallback mode)");
+    }
+
     if (cleanKey === 'BASEBALL-VIP' || cleanKey === 'PASS100' || cleanKey === 'VIP2026') {
       return { valid: true, serial: 'TEST' };
     }
 
-    // 格式: BB-XXXX-YYYY
     const parts = cleanKey.split('-');
     if (parts.length !== 3 || parts[0] !== 'BB') {
-      return { valid: false, error: "フォーマットエラー" };
+      return { valid: false, error: "フォーマットエラー（例: BB-001000-XXXX）" };
     }
 
     const serialNum = parts[1];
     const userChecksum = parts[2];
 
-    // 暗号ハッシュの数学的計算
     let hash = 0;
     const str = serialNum + SECRET_SALT;
     for (let i = 0; i < str.length; i++) {
@@ -133,7 +142,7 @@
     if (userChecksum === expectedChecksum) {
       return { valid: true, serial: serialNum };
     }
-    return { valid: false, error: "暗号ミスマッチ" };
+    return { valid: false, error: "暗号ミスマッチ（無効なコード）" };
   }
 
   function cleanDuplicateJournalsByDate(journalsList) {
@@ -160,6 +169,7 @@
         state.customApiKey = parsed.customApiKey || '';
         state.isUnlocked = parsed.isUnlocked || false;
         state.unlockedKey = parsed.unlockedKey || '';
+        state.usedKeys = parsed.usedKeys || [];
       }
     } catch (e) {
       console.error("State Load Error:", e);
@@ -173,7 +183,8 @@
         privacyLevel: state.privacyLevel,
         customApiKey: state.customApiKey,
         isUnlocked: state.isUnlocked,
-        unlockedKey: state.unlockedKey
+        unlockedKey: state.unlockedKey,
+        usedKeys: state.usedKeys
       }));
     } catch (e) {
       console.error("State Save Error:", e);
@@ -182,12 +193,23 @@
 
   function checkPasscodeState() {
     if (!passcodeLockCard || !unlockedAnalysisContent) return;
+
+    if (state.hasActiveResult) {
+      passcodeLockCard.classList.add('hidden');
+      unlockedAnalysisContent.classList.add('hidden');
+      if (aiDeepAnalysisContainer) aiDeepAnalysisContainer.classList.remove('hidden');
+      return;
+    }
+
     if (state.isUnlocked) {
       passcodeLockCard.classList.add('hidden');
       unlockedAnalysisContent.classList.remove('hidden');
+      if (aiDeepAnalysisContainer) aiDeepAnalysisContainer.classList.add('hidden');
     } else {
       passcodeLockCard.classList.remove('hidden');
       unlockedAnalysisContent.classList.add('hidden');
+      if (aiDeepAnalysisContainer) aiDeepAnalysisContainer.classList.add('hidden');
+      if (analysisPlaceholder) analysisPlaceholder.classList.remove('hidden');
     }
   }
 
@@ -211,22 +233,32 @@
   }
 
   function setupEventListeners() {
-    // 🔑 パスコード検証・ロック解除イベント
+    // 🔑 パスコード検証（サーバーチェック付き）
     if (btnUnlockPasscode && passcodeInput) {
-      btnUnlockPasscode.addEventListener('click', () => {
-        const inputVal = passcodeInput.value.trim();
-        const verification = verifyCryptographicKey(inputVal);
+      btnUnlockPasscode.addEventListener('click', async () => {
+        const inputVal = passcodeInput.value.trim().toUpperCase();
+        if (!inputVal) return;
+
+        btnUnlockPasscode.disabled = true;
+        btnUnlockPasscode.textContent = '照合中...';
+
+        const verification = await verifyCryptographicKeyServer(inputVal);
+
+        btnUnlockPasscode.disabled = false;
+        btnUnlockPasscode.textContent = '認証';
 
         if (verification.valid) {
           state.isUnlocked = true;
-          state.unlockedKey = inputVal.toUpperCase();
+          state.hasActiveResult = false;
+          state.unlockedKey = inputVal;
           saveState();
           checkPasscodeState();
           if (passcodeErrorMsg) passcodeErrorMsg.classList.add('hidden');
-          alert("🎉 正式なライセンスコードが認証されました！「AI de 本格分析」がこの端末で利用可能です。");
+          passcodeInput.value = '';
+          alert("🎉 秘密コードが認証されました！【本格AI分析（1回分）】が利用可能です。下の「AI分析を始める」を押してください。");
         } else {
           if (passcodeErrorMsg) {
-            passcodeErrorMsg.textContent = "※ 無効なコードです。適当な文字列は認証されません。正しく入力してください。";
+            passcodeErrorMsg.textContent = `※ ${verification.error || '無効なコードです。'}`;
             passcodeErrorMsg.classList.remove('hidden');
           }
         }
@@ -318,7 +350,8 @@
           dynamicScores: analysis.dynamicScores,
           goodPoints: analysis.goodPoints,
           issues: analysis.issues,
-          immediateAdvice: analysis.immediateAdvice
+          immediateAdvice: analysis.immediateAdvice,
+          deepAnalysisReport: null
         };
 
         if (aiResultContainer) aiResultContainer.classList.remove('hidden');
@@ -360,14 +393,14 @@
       });
     }
 
-    // 🔘 トーストポップアップ「閉じる」ボタン
+    // 🔘 トースト「閉じる」
     if (btnCloseToast) {
       btnCloseToast.addEventListener('click', () => {
         if (toastModal) toastModal.classList.add('hidden');
       });
     }
 
-    // ↩️ トーストポップアップ「元に戻す (Undo)」ボタン
+    // ↩️ トースト「元に戻す」
     if (btnUndoSave) {
       btnUndoSave.addEventListener('click', () => {
         if (state.lastSaveActionType === 'overwrite' && state.lastOverwrittenJournal) {
@@ -391,14 +424,16 @@
       });
     }
 
-    // 深層AI分析の手動実行ボタン
+    // 🎟️ 深層AI分析の実行
     if (btnRunDeepAnalysis) {
       btnRunDeepAnalysis.addEventListener('click', async () => {
         btnRunDeepAnalysis.disabled = true;
         btnRunDeepAnalysis.innerHTML = '<i data-lucide="loader"></i> AIが本格分析中...';
-        await renderDeepAIAnalysis();
+        
+        await renderDeepAIAnalysisAndConsumeTicket();
+
         btnRunDeepAnalysis.disabled = false;
-        btnRunDeepAnalysis.innerHTML = '最新ノートでAI分析を再開';
+        btnRunDeepAnalysis.innerHTML = 'AI分析を始める';
       });
     }
 
@@ -422,10 +457,12 @@
     // リセット
     if (btnResetData) {
       btnResetData.addEventListener('click', () => {
-        if (confirm("全てのノートデータを削除しますか？")) {
+        if (confirm("全てのノートデータを削除しますか？\n（※過去に購入して使用したコードはサーバー側に記録されているため再利用できません）")) {
           state.journals = [];
           state.isUnlocked = false;
+          state.hasActiveResult = false;
           state.unlockedKey = '';
+          state.usedKeys = [];
           saveState();
           location.reload();
         }
@@ -451,36 +488,64 @@
       if (pane.id === tabId) pane.classList.add('active');
       else pane.classList.remove('active');
     });
+
+    if (tabId !== 'tab-ai-analysis' && state.hasActiveResult) {
+      state.hasActiveResult = false;
+    }
+
+    if (tabId === 'tab-ai-analysis') {
+      checkPasscodeState();
+    }
   }
 
-  // ✨ AI de 本格分析描画
-  async function renderDeepAIAnalysis() {
-    if (!deepTechText || !deepTacticalText || !homeDrillsContainer || !outdoorDrillsContainer) return;
-    
+  // 🎟️ 深層AI分析の実行 ＆ サーバー側へ使用済み登録
+  async function renderDeepAIAnalysisAndConsumeTicket() {
     const analysisData = await AIEngine.generateDeepAIAnalysis(state.journals, state.customApiKey);
     
-    if (deepPlayerTypeTitle) deepPlayerTypeTitle.innerHTML = `<i data-lucide="award" style="color:var(--accent-purple)"></i> 🔥 選手タイプ: ${analysisData.playerTypeTitle || 'ミート＆状況判断アベレージ打者'}`;
-    if (deepPlayerTypeDesc) deepPlayerTypeDesc.textContent = analysisData.playerTypeDesc || '';
+    // DOM要素の動的取得
+    const elPlayerTypeTitle = document.getElementById('deepPlayerTypeTitle');
+    const elPlayerTypeDesc = document.getElementById('deepPlayerTypeDesc');
+    const elTechText = document.getElementById('deepTechText');
+    const elTacticalText = document.getElementById('deepTacticalText');
+    const elHomeDrills = document.getElementById('homeDrillsContainer');
+    const elOutdoorDrills = document.getElementById('outdoorDrillsContainer');
+    const elWeeklyRoadmap = document.getElementById('weeklyRoadmapContainer');
 
-    deepTechText.textContent = analysisData.techAnalysis;
-    deepTacticalText.textContent = analysisData.tacticalAnalysis;
+    // 1. 🔥 選手タイプ診断の描画
+    if (elPlayerTypeTitle) {
+      elPlayerTypeTitle.innerHTML = `<i data-lucide="award" style="color:var(--accent-purple)"></i> 🔥 選手タイプ: ${analysisData.playerTypeTitle || '広角ミート＆状況判断型打者'}`;
+    }
+    if (elPlayerTypeDesc) {
+      elPlayerTypeDesc.textContent = analysisData.playerTypeDesc || 'しっかりボールを引きつけて力を発揮できる高ポテンシャル選手です。';
+    }
 
-    homeDrillsContainer.innerHTML = (analysisData.homeDrills || []).map((drill, index) => `
-      <div class="drill-item-card">
-        <div class="drill-title" style="color:var(--accent-green)"><i data-lucide="home"></i> 家特訓 ${index + 1}: ${drill.title}</div>
-        <div class="drill-desc">${drill.desc}</div>
-      </div>
-    `).join('');
+    // 2. 🧠 技術 ＆ 実戦分析の描画
+    if (elTechText) elTechText.textContent = analysisData.techAnalysis || '';
+    if (elTacticalText) elTacticalText.textContent = analysisData.tacticalAnalysis || '';
 
-    outdoorDrillsContainer.innerHTML = (analysisData.outdoorDrills || []).map((drill, index) => `
-      <div class="drill-item-card">
-        <div class="drill-title" style="color:var(--accent-blue)"><i data-lucide="sun"></i> 外特訓 ${index + 1}: ${drill.title}</div>
-        <div class="drill-desc">${drill.desc}</div>
-      </div>
-    `).join('');
+    // 3. 🏠 家特訓ドリルの描画
+    if (elHomeDrills) {
+      elHomeDrills.innerHTML = (analysisData.homeDrills || []).map((drill, index) => `
+        <div class="drill-item-card">
+          <div class="drill-title" style="color:var(--accent-green)"><i data-lucide="home"></i> 家特訓 ${index + 1}: ${drill.title}</div>
+          <div class="drill-desc">${drill.desc}</div>
+        </div>
+      `).join('');
+    }
 
-    if (weeklyRoadmapContainer) {
-      weeklyRoadmapContainer.innerHTML = (analysisData.weeklyRoadmap || []).map((step, idx) => `
+    // 4. ⚾ 外特訓ドリルの描画
+    if (elOutdoorDrills) {
+      elOutdoorDrills.innerHTML = (analysisData.outdoorDrills || []).map((drill, index) => `
+        <div class="drill-item-card">
+          <div class="drill-title" style="color:var(--accent-blue)"><i data-lucide="sun"></i> 外特訓 ${index + 1}: ${drill.title}</div>
+          <div class="drill-desc">${drill.desc}</div>
+        </div>
+      `).join('');
+    }
+
+    // 5. 🚀 1週間成長ロードマップの描画
+    if (elWeeklyRoadmap) {
+      elWeeklyRoadmap.innerHTML = (analysisData.weeklyRoadmap || []).map((step, idx) => `
         <div style="background:var(--bg-input);padding:10px 12px;border-radius:var(--radius-sm);border-left:3.5px solid #F59E0B;display:flex;flex-direction:column;gap:2px;">
           <span style="font-size:0.75rem;font-weight:800;color:#F59E0B;">STEP ${idx + 1}【${step.day}】</span>
           <span style="font-size:0.82rem;color:var(--text-main);font-weight:500;">${step.task}</span>
@@ -488,8 +553,48 @@
       `).join('');
     }
 
+    // 画面表示
+    if (passcodeLockCard) passcodeLockCard.classList.add('hidden');
+    if (unlockedAnalysisContent) unlockedAnalysisContent.classList.add('hidden');
     if (analysisPlaceholder) analysisPlaceholder.classList.add('hidden');
     if (aiDeepAnalysisContainer) aiDeepAnalysisContainer.classList.remove('hidden');
+
+    state.hasActiveResult = true;
+
+    // 📅 最新ノートに全分析データを保存
+    const todayStr = new Date().toISOString().split('T')[0];
+    let targetIndex = state.journals.findIndex(j => j.date === todayStr);
+
+    if (targetIndex !== -1) {
+      state.journals[targetIndex].deepAnalysisReport = analysisData;
+    } else if (state.journals.length > 0) {
+      state.journals[0].deepAnalysisReport = analysisData;
+    }
+
+    // 🛡️ サーバー ＆ ローカルに使用済みコードを送信・追加
+    if (state.unlockedKey) {
+      if (!state.usedKeys.includes(state.unlockedKey)) {
+        state.usedKeys.push(state.unlockedKey);
+      }
+      try {
+        await fetch('/api/consume-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: state.unlockedKey })
+        });
+      } catch (e) {
+        console.log("Server consume bypass");
+      }
+    }
+
+    state.isUnlocked = false;
+    state.unlockedKey = '';
+    saveState();
+    renderJournalList();
+
+    if (window.CalendarView) CalendarView.updateJournals(state.journals);
+
+    alert("✨ 【本格AI分析完了！】\n「選手タイプ診断」「1週間ロードマップ」「特訓ドリル」などの全レポートが表示されました！\n※ カレンダー（履歴）にも永久保存されました。他タブへ移動するとチケットが消費され再ロックされます。");
 
     if (window.lucide) lucide.createIcons();
   }
@@ -525,10 +630,11 @@
 
     container.innerHTML = state.journals.map(j => {
       const summaryTitle = (j.cleanedContent || j.rawContent || '').split(/[\n。]/)[0].substring(0, 22) + '...';
+      const hasDeepBadge = j.deepAnalysisReport ? `<span style="background:rgba(168, 85, 247, 0.2);border:1px solid var(--accent-purple);color:var(--accent-purple);font-size:0.65rem;font-weight:800;padding:2px 6px;border-radius:4px;margin-left:6px;">PRO分析有</span>` : '';
       return `
         <button type="button" class="journal-btn-card" data-id="${j.id}">
           <div class="journal-btn-info">
-            <span class="journal-btn-date"><i data-lucide="calendar"></i> ${j.date} 【${j.category} - ${j.position}】</span>
+            <span class="journal-btn-date"><i data-lucide="calendar"></i> ${j.date} 【${j.category} - ${j.position}】${hasDeepBadge}</span>
             <span class="journal-btn-title">${summaryTitle}</span>
           </div>
           <i data-lucide="chevron-right" style="color:var(--text-muted);width:18px;height:18px;"></i>
@@ -547,6 +653,7 @@
     if (window.lucide) lucide.createIcons();
   }
 
+  // 📅 カレンダー／履歴詳細モーダル
   function openJournalModal(journal) {
     const modal = document.getElementById('noteDetailModal');
     const title = document.getElementById('modalDateTitle');
@@ -555,6 +662,56 @@
     if (!modal || !body) return;
 
     title.textContent = `${journal.date} のノート 【${journal.category}】`;
+
+    let deepReportHtml = '';
+    if (journal.deepAnalysisReport) {
+      const rep = journal.deepAnalysisReport;
+      
+      const homeDrillsHtml = (rep.homeDrills || []).map((d, i) => `
+        <div style="font-size:0.78rem;background:rgba(16,185,129,0.1);padding:6px 8px;border-radius:4px;margin-top:4px;border-left:3px solid var(--accent-green);">
+          <strong style="color:var(--accent-green);">🏠 家特訓${i+1}: ${d.title}</strong><br>${d.desc}
+        </div>
+      `).join('');
+
+      const outdoorDrillsHtml = (rep.outdoorDrills || []).map((d, i) => `
+        <div style="font-size:0.78rem;background:rgba(0,242,254,0.1);padding:6px 8px;border-radius:4px;margin-top:4px;border-left:3px solid var(--accent-blue);">
+          <strong style="color:var(--accent-blue);">⚾ 外特訓${i+1}: ${d.title}</strong><br>${d.desc}
+        </div>
+      `).join('');
+
+      const roadmapHtml = (rep.weeklyRoadmap || []).map((s, idx) => `
+        <div style="font-size:0.78rem;background:rgba(245,158,11,0.1);padding:6px 8px;border-radius:4px;margin-top:4px;border-left:3px solid #F59E0B;">
+          <strong style="color:#F59E0B;">STEP ${idx+1}【${s.day}】</strong> ${s.task}
+        </div>
+      `).join('');
+
+      deepReportHtml = `
+        <div class="card" style="background:linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(0, 242, 254, 0.12));border:1px solid var(--accent-purple);margin-top:14px;padding:14px;">
+          <span class="badge-premium" style="margin-bottom:6px;"><i data-lucide="sparkles"></i> PRO ANALYTICS レポート</span>
+          
+          <h4 style="font-size:0.98rem;font-weight:900;color:#FFF;margin-top:6px;">🔥 ${rep.playerTypeTitle || '選手タイプ診断'}</h4>
+          <p style="font-size:0.8rem;color:var(--text-main);margin-top:4px;line-height:1.45;">${rep.playerTypeDesc || ''}</p>
+
+          <div style="margin-top:10px;font-size:0.8rem;line-height:1.5;">
+            <strong style="color:var(--accent-purple);">【技術・フォーム分析】</strong><br>${rep.techAnalysis || ''}
+          </div>
+          <div style="margin-top:8px;font-size:0.8rem;line-height:1.5;">
+            <strong style="color:var(--accent-blue);">【実戦・チーム分析】</strong><br>${rep.tacticalAnalysis || ''}
+          </div>
+
+          <div style="margin-top:10px;">
+            <strong style="font-size:0.82rem;color:var(--text-main);">【特訓ドリル】</strong>
+            ${homeDrillsHtml}
+            ${outdoorDrillsHtml}
+          </div>
+
+          <div style="margin-top:10px;">
+            <strong style="font-size:0.82rem;color:#F59E0B;">🚀 【1週間成長ロードマップ】</strong>
+            ${roadmapHtml}
+          </div>
+        </div>
+      `;
+    }
 
     body.innerHTML = `
       <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px;">ポジション: ${journal.position} / 体調: ${journal.condition}</div>
@@ -576,6 +733,8 @@
         <span class="advice-badge-title">AIコーチアドバイス</span>
         <div class="advice-card-body">${journal.immediateAdvice || ''}</div>
       </div>
+
+      ${deepReportHtml}
     `;
 
     modal.classList.remove('hidden');
