@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>BASE一括登録用 CSVコード自動生成ツール</title>
+  <style>
+    body { font-family: sans-serif; background: #0F172A; color: #F8FAFC; padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 85vh; }
+    .card { background: #1E293B; border: 1px solid #334155; padding: 28px; border-radius: 14px; width: 100%; max-width: 480px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    h2 { color: #00F2FE; margin-bottom: 10px; font-size: 1.35rem; }
+    p { font-size: 0.85rem; color: #94A3B8; margin-bottom: 24px; line-height: 1.55; }
+    .btn-green { background: linear-gradient(135deg, #10B981, #059669); color: #FFF; border: none; padding: 14px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.05rem; width: 100%; box-shadow: 0 4px 15px rgba(16,185,129,0.3); }
+    .btn-green:hover { opacity: 0.95; transform: translateY(-1px); }
+    .status { margin-top: 18px; font-size: 0.9rem; font-weight: bold; color: #A855F7; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>📁 BASE用 CSV一括生成ツール</h2>
+    <p>数千〜数万個の有効な暗号ライセンスコードを自動計算し、BASEのデジタルコンテンツ販売でそのままアップロードできる <strong>CSVファイル</strong> を一瞬で生成・ダウンロードします！</p>
+
+    <div style="margin-bottom:20px;">
+      <label style="font-size:0.85rem;color:#CBD5E1;margin-right:8px;">発行数:</label>
+      <select id="countSelect" style="background:#0F172A;color:#FFF;border:1px solid #475569;padding:8px 12px;border-radius:6px;font-weight:bold;">
+        <option value="1000">1,000個 (オススメ・高速)</option>
+        <option value="5000">5,000個</option>
+        <option value="10000" selected>10,000個 (大容量)</option>
+        <option value="30000">30,000個 (特大)</option>
+      </select>
+    </div>
+
+    <button type="button" class="btn-green" onclick="generateCSV()">
+      🚀 BASE用 CSVファイルを生成して保存
+    </button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    const SECRET_SALT = "BASEBALL_AI_2026_SECRET_SALT";
+
+    function calcChecksum(serial) {
+      let hash = 0;
+      const str = serial + SECRET_SALT;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      const hex = Math.abs(hash).toString(36).toUpperCase();
+      return (hex + "X7K9").substring(0, 4);
+    }
+
+    function generateCSV() {
+      const count = parseInt(document.getElementById('countSelect').value, 10);
+      const status = document.getElementById('status');
+      status.textContent = `生成中... (${count}個のコードを暗号計算中)`;
+
+      setTimeout(() => {
+        const keysSet = new Set();
+        let csvContent = "シリアルコード\n"; // BASE用ヘッダー
+
+        let counter = 1000;
+        while (keysSet.size < count) {
+          const serialStr = counter.toString().padStart(6, '0');
+          const checksum = calcChecksum(serialStr);
+          const key = `BB-${serialStr}-${checksum}`;
+          
+          if (!keysSet.has(key)) {
+            keysSet.add(key);
+            csvContent += key + "\n";
+          }
+          counter++;
+        }
+
+        // CSVファイルの自動保存ダウンロード
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `base_license_keys_${count}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        status.innerHTML = `✅ 完成！ <br><span style="color:#00F2FE;">base_license_keys_${count}.csv</span> がダウンロードされました！`;
+      }, 100);
+    }
+  </script>
+
+</body>
+</html>
